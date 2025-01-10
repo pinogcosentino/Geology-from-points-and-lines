@@ -1,0 +1,47 @@
+# This file contains metadata for your plugin.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=Geology from points and lines
+qgisMinimumVersion=3.0
+description=Tools for QGIS 3.x to generate the Geological Units from the drawing of the geological boundaries with the points containing the geological information inside (ID code of the Geological Units)
+version=0.1
+author=Giuseppe Cosentino
+email=giuseppe.cosentino@cnr.it
+
+about=Tools for QGIS 3.x to generate the Geological Units from the drawing of the geological boundaries with the points containing the geological information inside (ID code of the Geological Units)
+
+tracker=https://github.com/pinogcosentino/Geology-from-points-and-lines/pulls
+repository=https://github.com/pinogcosentino/Geology-from-points-and-lines
+# End of mandatory metadata
+
+# Recommended items:
+
+hasProcessingProvider=yes
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=python, Geology, Geoprocessing
+
+homepage=https://github.com/pinogcosentino/Geology-from-points-and-lines
+category=Analysis
+icon=icon.png
+# experimental flag
+experimental=False
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
+# Since QGIS 3.8, a comma separated list of plugins to be installed
+# (or upgraded) can be specified.
+# Check the documentation for more information.
+# plugin_dependencies=
+
+Category of the plugin: Raster, Vector, Database or Web
+# category=Vector
+
+# If the plugin can run on QGIS Server.
+server=False
+
