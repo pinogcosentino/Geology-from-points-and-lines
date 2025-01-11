@@ -10,5 +10,3 @@ To create polygons from lines and points in a GIS, follow these steps:
    
 3) Generate the polygons and lines (geological contacts): Use the plugin 'Geology from points and lines' to generate polygons and geological contacts. This tool connects the points and lines to create enclosed areas and attributes the geological information contained in the points.
 
-QGIS model schema:
-![Schema](https://github.com/user-attachments/assets/c9ba0da3-dd82-45e2-9f45-bd327e36277d)
