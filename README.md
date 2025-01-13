@@ -1,5 +1,8 @@
 # Geology-from-points-and-lines
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14629465.svg)](https://doi.org/10.5281/zenodo.14629465)
+
+This method allows for the creation of a digital geological map starting from point and line data, automating the process of generating geological units and simplifying the creation of detailed geological maps
+
 Geoprocessing tools for QGIS 3.x to generate Geological Units from the drawing of geological boundaries, with points containing geological information (ID code of the Geological Units).
 
 To create polygons from lines and points in a GIS, follow these steps:
