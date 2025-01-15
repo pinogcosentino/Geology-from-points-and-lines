@@ -1,16 +1,18 @@
-# This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.# Mandatory items:
 
 [general]
 name=Geology from points and lines
 qgisMinimumVersion=3.0
-description=Tools for QGIS 3.x to generate the Geological Units from the drawing of the geological boundaries with the points containing the geological information inside (ID code of the Geological Units)
-version=0.1
+description=Geoprocessing plugin to generate polygons and lines from lines and points with geological information
+description[it]=Plugin di geoprossing per generare poligoni da linee e punti contenenti l'informazione geologica.
+
+
+version=1.0
 author=Giuseppe Cosentino
 email=giuseppe.cosentino@cnr.it
 
-about=Tools for QGIS 3.x to generate the Geological Units from the drawing of the geological boundaries with the points containing the geological information inside (ID code of the Geological Units)
+about=Tools for QGIS 3.x to generate the Geological Units from the drawing of the geological boundaries with the points containing the geological information inside.
+about[it]=Strumento per QGIS 3.x per generare le unità geologiche dal disegno dei confini geologici con i punti contenenti le informazioni geologiche all'interno.
+
 
 tracker=https://github.com/pinogcosentino/Geology-from-points-and-lines/pulls
 repository=https://github.com/pinogcosentino/Geology-from-points-and-lines
@@ -21,12 +23,16 @@ repository=https://github.com/pinogcosentino/Geology-from-points-and-lines
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 # changelog=
+ <b>v1.0:</b>
+	- The linear segments representing geological contacts have been joined based on the information contained within the points (geological innput) 
+	- Added the "HELP" button
+	- Fixed some minor issues
 
 # Tags are comma separated with spaces allowed
-tags=python, Geology, Geoprocessing
+tags=Geology, Geoprocessing, python
 
 homepage=https://github.com/pinogcosentino/Geology-from-points-and-lines
-category=Analysis
+category=Vector
 icon=icon.png
 # experimental flag
 experimental=False
