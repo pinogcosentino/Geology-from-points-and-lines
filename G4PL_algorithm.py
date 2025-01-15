@@ -23,7 +23,7 @@
 """
 
 __author__ = 'Giuseppe Cosentino'
-__date__ = '2025-01-10'
+__date__ = '2025-01-15'
 __copyright__ = '(C) 2025 by Giuseppe Cosentino'
 
 # This will get replaced with a git SHA1 when you do a git archive
@@ -49,27 +49,15 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterField('geological_attribute_input', 'Geological Attribute INPUT', type=QgsProcessingParameterField.Any, parentLayerParameterName='points_with_geological_information_centroid', allowMultiple=False, defaultValue=None))
         self.addParameter(QgsProcessingParameterFeatureSink('CleanPolygons', 'clean polygons', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
         self.addParameter(QgsProcessingParameterFeatureSink('CleanPoints', 'clean points', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
-        self.addParameter(QgsProcessingParameterFeatureSink('GeologicalContacts', 'Geological Contacts', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
+        self.addParameter(QgsProcessingParameterFeatureSink('GeologicalSegments', 'Geological Segments', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterFeatureSink('GeologicalPolygons', 'Geological Polygons', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
-        feedback = QgsProcessingMultiStepFeedback(8, model_feedback)
+        feedback = QgsProcessingMultiStepFeedback(9, model_feedback)
         results = {}
         outputs = {}
-
-        # Elimina geometrie duplicate dei punti
-        alg_params = {
-            'INPUT': parameters['points_with_geological_information_centroid'],
-            'OUTPUT': parameters['CleanPoints']
-        }
-        outputs['EliminaGeometrieDuplicateDeiPunti'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-        results['CleanPoints'] = outputs['EliminaGeometrieDuplicateDeiPunti']['OUTPUT']
-
-        feedback.setCurrentStep(1)
-        if feedback.isCanceled():
-            return {}
 
         # Poligonizza
         alg_params = {
@@ -79,7 +67,7 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
         }
         outputs['Poligonizza'] = processing.run('native:polygonize', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
-        feedback.setCurrentStep(2)
+        feedback.setCurrentStep(1)
         if feedback.isCanceled():
             return {}
 
@@ -90,6 +78,18 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
         }
         outputs['EliminaGeometrieDuplicateDeiPoligoni'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
         results['CleanPolygons'] = outputs['EliminaGeometrieDuplicateDeiPoligoni']['OUTPUT']
+
+        feedback.setCurrentStep(2)
+        if feedback.isCanceled():
+            return {}
+
+        # Elimina geometrie duplicate dei punti
+        alg_params = {
+            'INPUT': parameters['points_with_geological_information_centroid'],
+            'OUTPUT': parameters['CleanPoints']
+        }
+        outputs['EliminaGeometrieDuplicateDeiPunti'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        results['CleanPoints'] = outputs['EliminaGeometrieDuplicateDeiPunti']['OUTPUT']
 
         feedback.setCurrentStep(3)
         if feedback.isCanceled():
@@ -151,20 +151,33 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
         # Elimina geometrie duplicate
         alg_params = {
             'INPUT': outputs['EsplodiLinee']['OUTPUT'],
-            'OUTPUT': parameters['GeologicalContacts']
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         outputs['EliminaGeometrieDuplicate'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-        results['GeologicalContacts'] = outputs['EliminaGeometrieDuplicate']['OUTPUT']
+
+        feedback.setCurrentStep(8)
+        if feedback.isCanceled():
+            return {}
+
+        # Dissolvi segmenti
+        alg_params = {
+            'FIELD': parameters['geological_attribute_input'],
+            'INPUT': outputs['EliminaGeometrieDuplicate']['OUTPUT'],
+            'SEPARATE_DISJOINT': False,
+            'OUTPUT': parameters['GeologicalSegments']
+        }
+        outputs['Dissolvi'] = processing.run('native:dissolve', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        results['GeologicalSegments'] = outputs['Dissolvi']['OUTPUT']
         return results
 
     def name(self):
         return 'Geology_from_point_and_line'
 
     def displayName(self):
-        return 'Geology_from_point_and_line'
+        return 'Geology from point and line'
 
     def group(self):
-        return 'Geology'
+        return 'Geological editing'
 
     def groupId(self):
         return 'Geology'
@@ -172,17 +185,22 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
     def shortHelpString(self):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
-p, li { white-space: pre-wrap; }
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:9.5pt; font-weight:400; font-style:normal;">
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica','Helvetica Neue','Arial','sans-serif'; font-size:8.3pt; font-weight:600; color:#1f00b4; background-color:#ffffff;">Tools for QGIS 3.x to generate the Geological Units from the drawing </span></p>
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica','Helvetica Neue','Arial','sans-serif'; font-size:8.3pt; font-weight:600; color:#1f00b4; background-color:#ffffff;">of the geological boundaries with the points containing the geological </span></p>
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica','Helvetica Neue','Arial','sans-serif'; font-size:8.3pt; font-weight:600; color:#1f00b4; background-color:#ffffff;">information inside (ID code of the Geological Units)</span></p></body></html></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-size:12pt;">This method allows for the creation of a digital geological map starting from point and line data, automating the process of generating geological units and simplifying the creation of detailed geological maps. Geoprocessing tools for QGIS 3.x to generate Geological Units from the drawing of geological boundaries, with points containing geological information (ID code of the Geological Units).</span></p></body></html></p>
 <h2>Esempi</h2>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
-p, li { white-space: pre-wrap; }
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:9.5pt; font-weight:400; font-style:normal;">
-<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8.3pt;"><br /></p></body></html></p><br><p align="right">Autore algoritmo: Giuseppe Cosentino</p><p align="right">Versione algoritmo: Version 1.1 202501</p></body></html>"""
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#00008c;">1) Create the lines: Use QGIS editing tools to draw the lines (geological contacts) that define the boundaries of the future polygons. Ensure that the lines intersect or touch correctly to form closed areas.</span></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#00008c;">2) Insert the points: Add the points that represent geological information you want to use to create the polygons.</span></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#00008c;">3) Generate the polygons and lines (geological contacts): Use the plugin 'Geology from points and lines' to generate polygons and geological contacts. This tool connects the points and lines to create enclosed areas and attributes the geological information contained in the points.</span></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; color:#000000;"><br /></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><a href="https://private-user-images.githubusercontent.com/30177622/402270573-58548c20-a1e8-4a49-a04e-689e8d75cd3a.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzY5NDIzNTksIm5iZiI6MTczNjk0MjA1OSwicGF0aCI6Ii8zMDE3NzYyMi80MDIyNzA1NzMtNTg1NDhjMjAtYTFlOC00YTQ5LWEwNGUtNjg5ZThkNzVjZDNhLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAxMTUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMTE1VDExNTQxOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTM5YWQ3Y2NiMWFjMWIyMmFkZjgxMDc5YWExZTBiYWZhMWZjM2QzNjMwOTQ1MmM0ZjM2NjczNTVkZjViZTUyMGEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.FsBO5tCTydQ3mY2scWD89ynhSxiLGcCsqT3kkGRJ4NY"><span style=" text-decoration: underline; color:#0000ff;">Schema link </span></a></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; text-decoration: underline; color:#0000ff;"><br /></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; color:#2323d9;"><br /></p></body></html></p><br><p align="right">Autore algoritmo: Giuseppe Cosentino (Pino)</p><p align="right">Versione algoritmo: Version 1.2 202501</p></body></html>"""
+
+    def helpUrl(self):
+        return 'https://private-user-images.githubusercontent.com/30177622/402270573-58548c20-a1e8-4a49-a04e-689e8d75cd3a.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzY5NDIzNTksIm5iZiI6MTczNjk0MjA1OSwicGF0aCI6Ii8zMDE3NzYyMi80MDIyNzA1NzMtNTg1NDhjMjAtYTFlOC00YTQ5LWEwNGUtNjg5ZThkNzVjZDNhLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAxMTUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMTE1VDExNTQxOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTM5YWQ3Y2NiMWFjMWIyMmFkZjgxMDc5YWExZTBiYWZhMWZjM2QzNjMwOTQ1MmM0ZjM2NjczNTVkZjViZTUyMGEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.FsBO5tCTydQ3mY2scWD89ynhSxiLGcCsqT3kkGRJ4NY'
 
     def createInstance(self):
         return GeologyAlgorithm()
