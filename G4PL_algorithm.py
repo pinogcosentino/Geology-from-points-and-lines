@@ -33,9 +33,9 @@ __revision__ = '$Format:%H$'
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
-from qgis.core import QgsProcessingParameterVectorLayer
 from qgis.core import QgsProcessingParameterFeatureSource
 from qgis.core import QgsProcessingParameterField
+from qgis.core import QgsProcessingParameterVectorLayer
 from qgis.core import QgsProcessingParameterFeatureSink
 from qgis.core import QgsExpression
 import processing
@@ -44,44 +44,21 @@ import processing
 class GeologyAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterVectorLayer('lines_geological_contacts_', 'Lines (Geological Contacts )', types=[QgsProcessing.TypeVectorLine], defaultValue=None))
         self.addParameter(QgsProcessingParameterFeatureSource('points_with_geological_information_centroid', 'Points with geological information (centroid)', types=[QgsProcessing.TypeVectorPoint], defaultValue=None))
         self.addParameter(QgsProcessingParameterField('geological_attribute_input', 'Geological Attribute INPUT', type=QgsProcessingParameterField.Any, parentLayerParameterName='points_with_geological_information_centroid', allowMultiple=False, defaultValue=None))
-        self.addParameter(QgsProcessingParameterFeatureSink('CleanPolygons', 'clean polygons', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
+        self.addParameter(QgsProcessingParameterVectorLayer('line_drawing_geological_contacts', 'Line drawing (geological contacts)', types=[QgsProcessing.TypeVectorLine], defaultValue=None))
+        self.addParameter(QgsProcessingParameterFeatureSink('Polygons', 'Polygons', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
         self.addParameter(QgsProcessingParameterFeatureSink('CleanPoints', 'clean points', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
-        self.addParameter(QgsProcessingParameterFeatureSink('GeologicalSegments', 'Geological Segments', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue=None))
-        self.addParameter(QgsProcessingParameterFeatureSink('GeologicalPolygons', 'Geological Polygons', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
+        self.addParameter(QgsProcessingParameterFeatureSink('SegmentsOfTheDrawingOfGeologicalContacts', 'Segments of the drawing of geological contacts', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
+        self.addParameter(QgsProcessingParameterFeatureSink('GeologicalPolygons', 'Geological polygons', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, defaultValue='TEMPORARY_OUTPUT'))
+        self.addParameter(QgsProcessingParameterFeatureSink('GeologyContactsPointAttributes', 'Geology contacts (point attributes)', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, supportsAppend=True, defaultValue='TEMPORARY_OUTPUT'))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
-        feedback = QgsProcessingMultiStepFeedback(9, model_feedback)
+        feedback = QgsProcessingMultiStepFeedback(10, model_feedback)
         results = {}
         outputs = {}
-
-        # Poligonizza
-        alg_params = {
-            'INPUT': parameters['lines_geological_contacts_'],
-            'KEEP_FIELDS': True,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        outputs['Poligonizza'] = processing.run('native:polygonize', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-
-        feedback.setCurrentStep(1)
-        if feedback.isCanceled():
-            return {}
-
-        # Elimina geometrie duplicate dei poligoni
-        alg_params = {
-            'INPUT': outputs['Poligonizza']['OUTPUT'],
-            'OUTPUT': parameters['CleanPolygons']
-        }
-        outputs['EliminaGeometrieDuplicateDeiPoligoni'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-        results['CleanPolygons'] = outputs['EliminaGeometrieDuplicateDeiPoligoni']['OUTPUT']
-
-        feedback.setCurrentStep(2)
-        if feedback.isCanceled():
-            return {}
 
         # Elimina geometrie duplicate dei punti
         alg_params = {
@@ -90,6 +67,30 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
         }
         outputs['EliminaGeometrieDuplicateDeiPunti'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
         results['CleanPoints'] = outputs['EliminaGeometrieDuplicateDeiPunti']['OUTPUT']
+
+        feedback.setCurrentStep(1)
+        if feedback.isCanceled():
+            return {}
+
+        # Poligonizza
+        alg_params = {
+            'INPUT': parameters['line_drawing_geological_contacts'],
+            'KEEP_FIELDS': True,
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        }
+        outputs['Poligonizza'] = processing.run('native:polygonize', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+
+        feedback.setCurrentStep(2)
+        if feedback.isCanceled():
+            return {}
+
+        # Elimina geometrie duplicate dei poligoni
+        alg_params = {
+            'INPUT': outputs['Poligonizza']['OUTPUT'],
+            'OUTPUT': parameters['Polygons']
+        }
+        outputs['EliminaGeometrieDuplicateDeiPoligoni'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        results['Polygons'] = outputs['EliminaGeometrieDuplicateDeiPoligoni']['OUTPUT']
 
         feedback.setCurrentStep(3)
         if feedback.isCanceled():
@@ -148,36 +149,48 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
         if feedback.isCanceled():
             return {}
 
-        # Elimina geometrie duplicate
+        # Elimina geometrie duplicate linee
         alg_params = {
             'INPUT': outputs['EsplodiLinee']['OUTPUT'],
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            'OUTPUT': parameters['SegmentsOfTheDrawingOfGeologicalContacts']
         }
-        outputs['EliminaGeometrieDuplicate'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        outputs['EliminaGeometrieDuplicateLinee'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        results['SegmentsOfTheDrawingOfGeologicalContacts'] = outputs['EliminaGeometrieDuplicateLinee']['OUTPUT']
 
         feedback.setCurrentStep(8)
         if feedback.isCanceled():
             return {}
 
-        # Dissolvi segmenti
+        # Dissolvi
         alg_params = {
             'FIELD': parameters['geological_attribute_input'],
-            'INPUT': outputs['EliminaGeometrieDuplicate']['OUTPUT'],
+            'INPUT': outputs['EliminaGeometrieDuplicateLinee']['OUTPUT'],
             'SEPARATE_DISJOINT': False,
-            'OUTPUT': parameters['GeologicalSegments']
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         outputs['Dissolvi'] = processing.run('native:dissolve', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-        results['GeologicalSegments'] = outputs['Dissolvi']['OUTPUT']
+
+        feedback.setCurrentStep(9)
+        if feedback.isCanceled():
+            return {}
+
+        # Da multi parte a parti singole segmenti valore punti
+        alg_params = {
+            'INPUT': outputs['Dissolvi']['OUTPUT'],
+            'OUTPUT': parameters['GeologyContactsPointAttributes']
+        }
+        outputs['DaMultiParteAPartiSingoleSegmentiValorePunti'] = processing.run('native:multiparttosingleparts', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        results['GeologyContactsPointAttributes'] = outputs['DaMultiParteAPartiSingoleSegmentiValorePunti']['OUTPUT']
         return results
 
     def name(self):
         return 'Geology_from_point_and_line'
 
     def displayName(self):
-        return 'Geology from point and line'
+        return 'Geology_from_point_and_line'
 
     def group(self):
-        return 'Geological editing'
+        return 'Geology'
 
     def groupId(self):
         return 'Geology'
@@ -195,9 +208,7 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
 <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#00008c;">2) Insert the points: Add the points that represent geological information you want to use to create the polygons.</span></p>
 <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#00008c;">3) Generate the polygons and lines (geological contacts): Use the plugin 'Geology from points and lines' to generate polygons and geological contacts. This tool connects the points and lines to create enclosed areas and attributes the geological information contained in the points.</span></p>
 <p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; color:#000000;"><br /></p>
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><a href="https://private-user-images.githubusercontent.com/30177622/402270573-58548c20-a1e8-4a49-a04e-689e8d75cd3a.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzY5NDIzNTksIm5iZiI6MTczNjk0MjA1OSwicGF0aCI6Ii8zMDE3NzYyMi80MDIyNzA1NzMtNTg1NDhjMjAtYTFlOC00YTQ5LWEwNGUtNjg5ZThkNzVjZDNhLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAxMTUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMTE1VDExNTQxOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTM5YWQ3Y2NiMWFjMWIyMmFkZjgxMDc5YWExZTBiYWZhMWZjM2QzNjMwOTQ1MmM0ZjM2NjczNTVkZjViZTUyMGEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.FsBO5tCTydQ3mY2scWD89ynhSxiLGcCsqT3kkGRJ4NY"><span style=" text-decoration: underline; color:#0000ff;">Schema link </span></a></p>
-<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; text-decoration: underline; color:#0000ff;"><br /></p>
-<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; color:#2323d9;"><br /></p></body></html></p><br><p align="right">Autore algoritmo: Giuseppe Cosentino (Pino)</p><p align="right">Versione algoritmo: Version 1.2 202501</p></body></html>"""
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><a href="https://private-user-images.githubusercontent.com/30177622/402270573-58548c20-a1e8-4a49-a04e-689e8d75cd3a.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzY5NDIzNTksIm5iZiI6MTczNjk0MjA1OSwicGF0aCI6Ii8zMDE3NzYyMi80MDIyNzA1NzMtNTg1NDhjMjAtYTFlOC00YTQ5LWEwNGUtNjg5ZThkNzVjZDNhLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAxMTUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMTE1VDExNTQxOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTM5YWQ3Y2NiMWFjMWIyMmFkZjgxMDc5YWExZTBiYWZhMWZjM2QzNjMwOTQ1MmM0ZjM2NjczNTVkZjViZTUyMGEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.FsBO5tCTydQ3mY2scWD89ynhSxiLGcCsqT3kkGRJ4NY"><span style=" text-decoration: underline; color:#0000ff;">Schema link </span></a></p></body></html></p><br><p align="right">Autore algoritmo: Giuseppe Cosentino (Pino)</p><p align="right">Versione algoritmo: Version 0.2 20250116</p></body></html>"""
 
     def helpUrl(self):
         return 'https://private-user-images.githubusercontent.com/30177622/402270573-58548c20-a1e8-4a49-a04e-689e8d75cd3a.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzY5NDIzNTksIm5iZiI6MTczNjk0MjA1OSwicGF0aCI6Ii8zMDE3NzYyMi80MDIyNzA1NzMtNTg1NDhjMjAtYTFlOC00YTQ5LWEwNGUtNjg5ZThkNzVjZDNhLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAxMTUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMTE1VDExNTQxOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTM5YWQ3Y2NiMWFjMWIyMmFkZjgxMDc5YWExZTBiYWZhMWZjM2QzNjMwOTQ1MmM0ZjM2NjczNTVkZjViZTUyMGEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.FsBO5tCTydQ3mY2scWD89ynhSxiLGcCsqT3kkGRJ4NY'
