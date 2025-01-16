@@ -16,6 +16,6 @@ To create polygons from lines and points in a GIS, follow these steps:
 ![geology_plugin](https://github.com/user-attachments/assets/58548c20-a1e8-4a49-a04e-689e8d75cd3a)
 # Changelog
 # version 1.0
-	- The linear segments representing geological contacts have been joined based on the information contained within the points (geological innput) 
+	- The linear segments representing geological contacts have been joined based on the information contained within the points
 	- Added the "HELP" button
 	- Fixed some minor issues
