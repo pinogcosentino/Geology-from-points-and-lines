@@ -1,5 +1,5 @@
 # Geology-from-points-and-lines
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14652813.svg)](https://doi.org/10.5281/zenodo.14652813)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14652813.svg)](https://doi.org/10.5281/zenodo.14652813)![GitHub License](https://img.shields.io/github/license/pinogcosentino/Geology-tools) ![GitHub Release](https://img.shields.io/github/release/pinogcosentino/Geology-tools)
 
 This method allows for the creation of a digital geological map starting from point and line data, automating the process of generating geological units and simplifying the creation of detailed geological maps
 
