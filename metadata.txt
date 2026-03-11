@@ -1,10 +1,10 @@
-
 [general]
 name=Geology from points and lines
-qgisMinimumVersion=3.0
+qgisMinimumVersion=3.16
+qgisMaximumVersion=4.99
 description=Automated Geological Mapping Plugin
 description[it]=Plugin per la Cartografia Geologica Automatizzata
-version=1.1.0
+version=2.0.0
 author=Giuseppe Cosentino(Pino)
 email=giuseppe.cosentino@cnr.it
 
@@ -21,17 +21,22 @@ repository=https://github.com/pinogcosentino/Geology-from-points-and-lines
 hasProcessingProvider=yes
 
 changelog=
-	<b>Version 1.1.0</b>
- 		- Add Vertex tollerance
- 		- Add Spatial Predicate
- 		- Add Check quality control
- 	<b>Version 1.0.1</b>
- 		- Fixed some minor issues
- 		- new icon
-	<b>Version 1.0</b>
-		- The linear segments representing geological contacts have been joined based on the information contained within the points (geological innput) 
-		- Added the "HELP" button
-		-Fixed some minor issues
+    <b>Version 2.0.0</b>
+        - Full compatibility with QGIS 4.x (PyQt6, Qt6 enums)
+        - Backward compatible with QGIS 3.16+ (PyQt5)
+        - Updated enum references: Qgis.MessageLevel, Qgis.GeometryType, Qgis.ProcessingSourceType
+        - Updated QgsProcessingParameterField.DataType and QgsProcessingParameterNumber.Type
+    <b>Version 1.1.0</b>
+        - Add Vertex tollerance
+        - Add Spatial Predicate
+        - Add Check quality control
+    <b>Version 1.0.1</b>
+        - Fixed some minor issues
+        - new icon
+    <b>Version 1.0</b>
+        - The linear segments representing geological contacts have been joined based on the information contained within the points (geological input)
+        - Added the "HELP" button
+        - Fixed some minor issues
 
 # Tags are comma separated with spaces allowed
 tags=Geology, geoprocessing, cartography, python
@@ -55,4 +60,3 @@ Category of the plugin: Raster, Vector, Database or Web
 
 # If the plugin can run on QGIS Server.
 server=False
-

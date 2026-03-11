@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 
 """
@@ -21,7 +20,7 @@
 __author__ = 'Giuseppe Cosentino'
 __date__ = '2026-02-13'
 __copyright__ = '(C) 2026 by Giuseppe Cosentino'
-__version__ = '1.1'
+__version__ = '2.0'  # Updated for QGIS 4.0
 
 from typing import Dict, Any, Optional, List
 from enum import IntEnum
@@ -45,6 +44,61 @@ from qgis.core import (
     Qgis
 )
 import processing
+
+# ============================================================================
+# QGIS 4.0 / Qt6 compatibility
+# ============================================================================
+if Qgis.QGIS_VERSION_INT >= 40000:
+    from PyQt6.QtCore import Qt
+
+    # Source types
+    _TYPE_POINT   = Qgis.ProcessingSourceType.VectorPoint
+    _TYPE_LINE    = Qgis.ProcessingSourceType.VectorLine
+    _TYPE_POLYGON = Qgis.ProcessingSourceType.VectorPolygon
+
+    # Geometry types
+    _GEOM_POINT = Qgis.GeometryType.Point
+    _GEOM_LINE  = Qgis.GeometryType.Line
+
+    # Message levels
+    _MSG_CRITICAL = Qgis.MessageLevel.Critical
+    _MSG_WARNING  = Qgis.MessageLevel.Warning
+    _MSG_INFO     = Qgis.MessageLevel.Info
+
+    # Field data type
+    _FIELD_ANY = QgsProcessingParameterField.DataType.Any
+
+    # Number type
+    _NUMBER_DOUBLE = QgsProcessingParameterNumber.Type.Double
+
+    def _wkb_display_string(wkb_type):
+        return Qgis.displayString(wkb_type)
+
+else:
+    from PyQt5.QtCore import Qt
+
+    # Source types
+    _TYPE_POINT   = QgsProcessing.TypeVectorPoint
+    _TYPE_LINE    = QgsProcessing.TypeVectorLine
+    _TYPE_POLYGON = QgsProcessing.TypeVectorPolygon
+
+    # Geometry types
+    _GEOM_POINT = QgsWkbTypes.PointGeometry
+    _GEOM_LINE  = QgsWkbTypes.LineGeometry
+
+    # Message levels
+    _MSG_CRITICAL = Qgis.Critical
+    _MSG_WARNING  = Qgis.Warning
+    _MSG_INFO     = Qgis.Info
+
+    # Field data type
+    _FIELD_ANY = QgsProcessingParameterField.Any
+
+    # Number type
+    _NUMBER_DOUBLE = QgsProcessingParameterNumber.Double
+
+    def _wkb_display_string(wkb_type):
+        return QgsWkbTypes.displayString(wkb_type)
 
 
 class SpatialPredicate(IntEnum):
@@ -308,7 +362,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterFeatureSource(
                 self.INPUT_POINTS,
                 self.tr('Points with Geological Information'),
-                types=[QgsProcessing.TypeVectorPoint],
+                types=[_TYPE_POINT],           # ← QGIS 4.0: Qgis.ProcessingSourceType.VectorPoint
                 defaultValue=None
             )
         )
@@ -318,7 +372,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterField(
                 self.INPUT_ATTRIBUTE,
                 self.tr('Geological Attribute Field'),
-                type=QgsProcessingParameterField.Any,
+                type=_FIELD_ANY,               # ← QGIS 4.0: QgsProcessingParameterField.DataType.Any
                 parentLayerParameterName=self.INPUT_POINTS,
                 allowMultiple=False,
                 defaultValue=None
@@ -330,7 +384,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterVectorLayer(
                 self.INPUT_LINES,
                 self.tr('Line Drawing (Geological Contacts)'),
-                types=[QgsProcessing.TypeVectorLine],
+                types=[_TYPE_LINE],            # ← QGIS 4.0: Qgis.ProcessingSourceType.VectorLine
                 defaultValue=None
             )
         )
@@ -340,7 +394,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterNumber(
                 self.TOLERANCE,
                 self.tr('Vertex Tolerance (for duplicate removal)'),
-                type=QgsProcessingParameterNumber.Double,
+                type=_NUMBER_DOUBLE,           # ← QGIS 4.0: QgsProcessingParameterNumber.Type.Double
                 minValue=self.MIN_TOLERANCE,
                 defaultValue=self.DEFAULT_TOLERANCE,
                 optional=False
@@ -368,7 +422,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_POLYGONS,
                 self.tr('Polygons (Intermediate)'),
-                type=QgsProcessing.TypeVectorPolygon,
+                type=_TYPE_POLYGON,            # ← QGIS 4.0: Qgis.ProcessingSourceType.VectorPolygon
                 createByDefault=True,
                 defaultValue='TEMPORARY_OUTPUT'
             )
@@ -379,7 +433,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_CLEAN_POINTS,
                 self.tr('Clean Points (Intermediate)'),
-                type=QgsProcessing.TypeVectorPoint,
+                type=_TYPE_POINT,              # ← QGIS 4.0: Qgis.ProcessingSourceType.VectorPoint
                 createByDefault=True,
                 defaultValue='TEMPORARY_OUTPUT'
             )
@@ -390,7 +444,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_SEGMENTS,
                 self.tr('Line Segments (Intermediate)'),
-                type=QgsProcessing.TypeVectorLine,
+                type=_TYPE_LINE,               # ← QGIS 4.0: Qgis.ProcessingSourceType.VectorLine
                 createByDefault=True,
                 defaultValue='TEMPORARY_OUTPUT'
             )
@@ -401,7 +455,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_GEOLOGICAL_POLYGONS,
                 self.tr('Geological Polygons'),
-                type=QgsProcessing.TypeVectorPolygon,
+                type=_TYPE_POLYGON,            # ← QGIS 4.0: Qgis.ProcessingSourceType.VectorPolygon
                 createByDefault=True,
                 supportsAppend=True,
                 defaultValue=None
@@ -413,7 +467,7 @@ such as formation codes, lithology, age, etc.</li>
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_CONTACTS,
                 self.tr('Geological Contacts (with Attributes)'),
-                type=QgsProcessing.TypeVectorLine,
+                type=_TYPE_LINE,               # ← QGIS 4.0: Qgis.ProcessingSourceType.VectorLine
                 createByDefault=True,
                 supportsAppend=True,
                 defaultValue=None
@@ -449,7 +503,7 @@ such as formation codes, lithology, age, etc.</li>
         
         # Validate point geometry type
         geom_type = points_source.wkbType()
-        if QgsWkbTypes.geometryType(geom_type) != QgsWkbTypes.PointGeometry:
+        if QgsWkbTypes.geometryType(geom_type) != _GEOM_POINT:  # ← QGIS 4.0: Qgis.GeometryType.Point
             return False, self.tr('Input must be a point layer')
         
         # Validate lines layer
@@ -462,7 +516,7 @@ such as formation codes, lithology, age, etc.</li>
         
         # Validate line geometry type
         geom_type = lines_layer.wkbType()
-        if QgsWkbTypes.geometryType(geom_type) != QgsWkbTypes.LineGeometry:
+        if QgsWkbTypes.geometryType(geom_type) != _GEOM_LINE:   # ← QGIS 4.0: Qgis.GeometryType.Line
             return False, self.tr('Input must be a line layer')
         
         # Validate attribute field exists
@@ -1081,7 +1135,7 @@ such as formation codes, lithology, age, etc.</li>
                     layer = QgsVectorLayer(output_path, 'temp', 'ogr')
                     if layer.isValid():
                         count = layer.featureCount()
-                        geom_type = QgsWkbTypes.displayString(layer.wkbType())
+                        geom_type = _wkb_display_string(layer.wkbType())  # ← QGIS 4.0: Qgis.displayString()
                         feedback.pushInfo(
                             self.tr(f'  - {output_name}: {count} features ({geom_type})')
                         )
@@ -1107,7 +1161,7 @@ such as formation codes, lithology, age, etc.</li>
         QgsMessageLog.logMessage(
             message, 
             self.displayName(), 
-            Qgis.Critical
+            _MSG_CRITICAL  # ← QGIS 4.0: Qgis.MessageLevel.Critical
         )
     
     def _log_warning(self, message: str) -> None:
@@ -1120,7 +1174,7 @@ such as formation codes, lithology, age, etc.</li>
         QgsMessageLog.logMessage(
             message, 
             self.displayName(), 
-            Qgis.Warning
+            _MSG_WARNING   # ← QGIS 4.0: Qgis.MessageLevel.Warning
         )
     
     def _log_info(self, message: str) -> None:
@@ -1133,7 +1187,7 @@ such as formation codes, lithology, age, etc.</li>
         QgsMessageLog.logMessage(
             message, 
             self.displayName(), 
-            Qgis.Info
+            _MSG_INFO      # ← QGIS 4.0: Qgis.MessageLevel.Info
         )
 
     def helpUrl(self) -> str:
