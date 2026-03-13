@@ -4,11 +4,11 @@ qgisMinimumVersion=3.16
 qgisMaximumVersion=4.99
 description=Automated Geological Mapping Plugin
 description[it]=Plugin per la Cartografia Geologica Automatizzata
-version=2.0.0
+version=2.0.1
 author=Giuseppe Cosentino(Pino)
 email=giuseppe.cosentino@cnr.it
 
-about=This plugin automates the creation of geological polygons by converting linear geological boundaries (contacts) into closed geometries. By leveraging control points that hold the specific geological data, the tool automatically assigns the correct attributes—such as lithology and age—to the resulting areas. This ensures high geometric accuracy and maintains strict topology between contact lines and geological units.
+about=This plugin automates the creation of geological polygons by converting linear geological boundaries (contacts) into closed geometries. By leveraging control points that hold the specific geological data, the tool automatically assigns the correct attributes such as lithology and age to the resulting areas. This ensures high geometric accuracy and maintains strict topology between contact lines and geological units.
 about[it]=Questo plugin automatizza la generazione di poligoni geologici trasformando i segmenti lineari dei limiti (contatti) in geometrie chiuse. Il sistema assegna automaticamente gli attributi corretti (come litologia ed età) incrociando i dati con punti di controllo contenenti le informazioni geologiche di riferimento. Il risultato è un dataset geometricamente accurato che garantisce una topologia perfetta tra i contatti lineari e le unità poligonali.
 
 
@@ -21,6 +21,8 @@ repository=https://github.com/pinogcosentino/Geology-from-points-and-lines
 hasProcessingProvider=yes
 
 changelog=
+    <b>Version 2.0.1</b>
+        - Inserted icon into the QGIS menu bar
     <b>Version 2.0.0</b>
         - Full compatibility with QGIS 4.x (PyQt6, Qt6 enums)
         - Backward compatible with QGIS 3.16+ (PyQt5)

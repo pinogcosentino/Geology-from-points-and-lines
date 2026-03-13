@@ -36,4 +36,4 @@ def classFactory(iface):  # pylint: disable=invalid-name
     """
     #
     from .G4PL import GeologyPlugin
-    return GeologyPlugin()
+    return GeologyPlugin(iface)
