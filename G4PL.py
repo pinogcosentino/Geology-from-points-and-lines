@@ -30,7 +30,7 @@ class GeologyPlugin:
     def initGui(self):
         self.initProcessing()
 
-        icon_path = os.path.join(plugin_dir, 'icon.png')
+        icon_path = os.path.join(plugin_dir, 'icon.svg')
 
         self.action = QAction(
             QIcon(icon_path),

@@ -59,7 +59,7 @@ class GeologyProvider(QgsProcessingProvider):
         Should return a QIcon which is used for your provider inside
         the Processing toolbox.
         """
-        return QIcon(os.path.join(os.path.dirname(__file__), 'icon.png'))
+        return QIcon(os.path.join(os.path.dirname(__file__), 'icon.svg'))
 
     def longName(self):
         """

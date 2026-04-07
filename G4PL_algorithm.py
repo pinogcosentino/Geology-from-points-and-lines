@@ -25,7 +25,10 @@ __version__ = '2.0'  # Updated for QGIS 4.0
 from typing import Dict, Any, Optional, List
 from enum import IntEnum
 
+import colorsys
+
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QColor
 from qgis.core import (
     QgsProcessing,
     QgsProcessingAlgorithm,
@@ -41,6 +44,12 @@ from qgis.core import (
     QgsFeatureSource,
     QgsVectorLayer,
     QgsMessageLog,
+    QgsProcessingUtils,
+    QgsCategorizedSymbolRenderer,
+    QgsRendererCategory,
+    QgsFillSymbol,
+    QgsLineSymbol,
+    QgsMarkerSymbol,
     Qgis
 )
 import processing
@@ -157,6 +166,9 @@ class GeologyAlgorithm(QgsProcessingAlgorithm):
     def __init__(self):
         """Initialize the algorithm."""
         super().__init__()
+        # Instance variables to pass data from processAlgorithm -> postProcessAlgorithm
+        self._output_layer_ids: Dict[str, str] = {}
+        self._attribute_field: str = ''
 
     # ========================================================================
     # Translation and Metadata Methods
@@ -722,10 +734,14 @@ such as formation codes, lithology, age, etc.</li>
             # Processing complete
             feedback.pushInfo('')
             feedback.pushInfo(self.tr('=' * 60))
-            feedback.pushInfo(self.tr('✓ Geological mapping completed successfully!'))
+            feedback.pushInfo(self.tr('Geological mapping completed successfully!'))
             feedback.pushInfo(self.tr('=' * 60))
             self._print_summary(results, context, feedback)
-            
+
+            # Store for postProcessAlgorithm (layer renaming + symbology)
+            self._output_layer_ids = results.copy()
+            self._attribute_field = attribute_field
+
             return results
             
         except QgsProcessingException:
@@ -734,6 +750,176 @@ such as formation codes, lithology, age, etc.</li>
             error_msg = self.tr(f'Unexpected error during processing: {str(e)}')
             self._log_error(error_msg)
             raise QgsProcessingException(error_msg)
+
+    # ========================================================================
+    # Post-Processing: Layer naming and symbology
+    # ========================================================================
+
+    def postProcessAlgorithm(self, context: Any, feedback: Any) -> Dict[str, Any]:
+        """
+        Rename output layers and apply symbology after algorithm completion.
+
+        This method is called by the framework once all output layers have been
+        loaded into the QGIS project, making it the correct place to:
+          - Assign meaningful names (solving the 'generic name' problem)
+          - Apply categorized renderer to geological polygons
+
+        Args:
+            context: Processing context (contains loaded layer references)
+            feedback: Feedback object
+
+        Returns:
+            Empty dict (required by the framework)
+        """
+        # Map each output key -> desired display name in the layer panel
+        layer_configs = [
+            (self.OUTPUT_CLEAN_POINTS,        'G4PL - Clean Points'),
+            (self.OUTPUT_POLYGONS,            'G4PL - Intermediate Polygons'),
+            (self.OUTPUT_SEGMENTS,            'G4PL - Line Segments'),
+            (self.OUTPUT_GEOLOGICAL_POLYGONS, 'G4PL - Geological Polygons'),
+            (self.OUTPUT_CONTACTS,            'G4PL - Geological Contacts'),
+        ]
+
+        for output_key, display_name in layer_configs:
+            layer_id = self._output_layer_ids.get(output_key)
+            if not layer_id:
+                continue
+
+            # Retrieve the layer that was loaded into the project
+            layer = QgsProcessingUtils.mapLayerFromString(layer_id, context)
+            if not layer or not layer.isValid():
+                continue
+
+            # --- Problem 1 fix: rename the layer ---
+            layer.setName(display_name)
+
+            # --- Problem 2 fix: categorized symbology on geological polygons ---
+            if output_key == self.OUTPUT_GEOLOGICAL_POLYGONS and self._attribute_field:
+                self._apply_categorized_renderer(layer, self._attribute_field)
+
+            # Also style contacts and intermediate layers for clarity
+            elif output_key == self.OUTPUT_CONTACTS and self._attribute_field:
+                self._apply_categorized_line_renderer(layer, self._attribute_field)
+
+        return {}
+
+    def _apply_categorized_renderer(self, layer: QgsVectorLayer, field_name: str) -> None:
+        """
+        Apply a categorized fill renderer to a polygon layer.
+
+        Each unique value of *field_name* gets a distinct, perceptually
+        separated color generated via the golden-ratio HSV method.
+
+        Args:
+            layer:      Target QgsVectorLayer (polygon geometry)
+            field_name: Attribute field used for classification
+        """
+        field_idx = layer.fields().indexOf(field_name)
+        if field_idx < 0:
+            self._log_warning(f'Field "{field_name}" not found for symbology')
+            return
+
+        unique_values = sorted(
+            [v for v in layer.uniqueValues(field_idx) if v is not None]
+        )
+        if not unique_values:
+            return
+
+        colors = self._generate_distinct_colors(len(unique_values))
+
+        categories = []
+        for value, color in zip(unique_values, colors):
+            symbol = QgsFillSymbol.createSimple({
+                'color':         color.name(),
+                'outline_color': '#4a4a4a',
+                'outline_width': '0.26',
+                'outline_style': 'solid',
+            })
+            categories.append(
+                QgsRendererCategory(value, symbol, str(value), True)
+            )
+
+        # Add a catch-all category for NULL / unclassified features
+        null_symbol = QgsFillSymbol.createSimple({
+            'color':         '#cccccc',
+            'outline_color': '#888888',
+            'outline_width': '0.26',
+        })
+        categories.append(
+            QgsRendererCategory(None, null_symbol, self.tr('(no data)'), True)
+        )
+
+        renderer = QgsCategorizedSymbolRenderer(field_name, categories)
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
+
+    def _apply_categorized_line_renderer(self, layer: QgsVectorLayer, field_name: str) -> None:
+        """
+        Apply a categorized line renderer to a line layer (geological contacts).
+
+        Args:
+            layer:      Target QgsVectorLayer (line geometry)
+            field_name: Attribute field used for classification
+        """
+        field_idx = layer.fields().indexOf(field_name)
+        if field_idx < 0:
+            return
+
+        unique_values = sorted(
+            [v for v in layer.uniqueValues(field_idx) if v is not None]
+        )
+        if not unique_values:
+            return
+
+        colors = self._generate_distinct_colors(len(unique_values))
+
+        categories = []
+        for value, color in zip(unique_values, colors):
+            symbol = QgsLineSymbol.createSimple({
+                'color':      color.darker(120).name(),  # slightly darker than polygons
+                'width':      '0.5',
+                'line_style': 'solid',
+            })
+            categories.append(
+                QgsRendererCategory(value, symbol, str(value), True)
+            )
+
+        renderer = QgsCategorizedSymbolRenderer(field_name, categories)
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
+
+    @staticmethod
+    def _generate_distinct_colors(n: int) -> List[QColor]:
+        """
+        Generate *n* visually distinct colors using the golden-ratio HSV method.
+
+        The golden-ratio increment (≈ 0.618) guarantees maximum angular
+        separation between successive hues on the color wheel, which is
+        ideal for categorical geological maps.
+
+        Args:
+            n: Number of colors to generate
+
+        Returns:
+            List of QColor objects
+        """
+        if n == 0:
+            return []
+
+        GOLDEN_RATIO = 0.618033988749895
+        hue = 0.08          # warm starting hue (avoids pure red)
+        colors: List[QColor] = []
+
+        for i in range(n):
+            hue = (hue + GOLDEN_RATIO) % 1.0
+            # Alternate saturation and value slightly for better discrimination
+            saturation = 0.55 + (i % 3) * 0.10   # 0.55 / 0.65 / 0.75
+            value      = 0.80 - (i % 2) * 0.10   # 0.80 / 0.70
+
+            r, g, b = colorsys.hsv_to_rgb(hue, saturation, value)
+            colors.append(QColor(int(r * 255), int(g * 255), int(b * 255)))
+
+        return colors
 
     # ========================================================================
     # Helper Methods for Processing Steps

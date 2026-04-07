@@ -4,7 +4,7 @@ qgisMinimumVersion=3.16
 qgisMaximumVersion=4.99
 description=Automated Geological Mapping Plugin
 description[it]=Plugin per la Cartografia Geologica Automatizzata
-version=2.0.1
+version=2.0.2
 author=Giuseppe Cosentino(Pino)
 email=giuseppe.cosentino@cnr.it
 
@@ -21,6 +21,8 @@ repository=https://github.com/pinogcosentino/Geology-from-points-and-lines
 hasProcessingProvider=yes
 
 changelog=
+    <b>Version 2.0.2</b>
+        - The style was added to polygons and lines by categorizing them based on a defined attribute.
     <b>Version 2.0.1</b>
         - Inserted icon into the QGIS menu bar
     <b>Version 2.0.0</b>
